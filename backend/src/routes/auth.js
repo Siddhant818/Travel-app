@@ -21,17 +21,14 @@ router.post('/customer/request-otp', async (req, res) => {
     const otp = generateOTP();
     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
-    // Save OTP to database
-    await OTP.findOneAndUpdate(
-      { email },
-      {
-        email,
-        otp,
-        expiry,
-        userData: { name, email, password, phone }
-      },
-      { upsert: true }
-    );
+    // Save OTP to database using a plain document write to avoid update casting issues
+    await OTP.deleteOne({ email });
+    await OTP.create({
+      email,
+      otp,
+      expiry,
+      userData: { name, email, password, phone }
+    });
 
     // Send OTP email
     await sendOTPEmail(email, otp);
