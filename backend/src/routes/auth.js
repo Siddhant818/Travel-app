@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
-const store = require('../data/store');
+const User = require('../models/User');
+const OTP = require('../models/OTP');
 const { generateOTP, sendOTPEmail } = require('../utils/otp');
 const { JWT_SECRET } = require('../middleware/auth');
 
@@ -13,64 +13,150 @@ router.post('/customer/request-otp', async (req, res) => {
     const { name, email, password, phone } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'Missing fields' });
 
-    const exists = store.customers.find(c => c.email === email);
-    if (exists) return res.status(409).json({ error: 'Email already registered' });
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(409).json({ error: 'Email already registered' });
 
+    // Generate OTP
     const otp = generateOTP();
-    const expiry = Date.now() + 10 * 60 * 1000; // 10 min
-    store.otps[email] = { otp, expiry, userData: { name, email, password, phone } };
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
+    // Save OTP to database
+    await OTP.findOneAndUpdate(
+      { email },
+      {
+        email,
+        otp,
+        expiry,
+        userData: { name, email, password, phone }
+      },
+      { upsert: true }
+    );
+
+    // Send OTP email
     await sendOTPEmail(email, otp);
     res.json({ message: 'OTP sent to email. Check server console in dev mode.', devOtp: otp });
   } catch (err) {
     console.error('Error in request-otp:', err);
-    res.status(500).json({ error: 'Server error: ' + err.message });
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 });
 
 // Customer: Verify OTP (step 2 of signup)
 router.post('/customer/verify-otp', async (req, res) => {
-  const { email, otp } = req.body;
-  const record = store.otps[email];
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: 'Missing email or OTP' });
 
-  if (!record) return res.status(400).json({ error: 'No OTP requested for this email' });
-  if (Date.now() > record.expiry) return res.status(400).json({ error: 'OTP expired' });
-  if (record.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+    // Find OTP record
+    const otpRecord = await OTP.findOne({ email });
+    if (!otpRecord) return res.status(400).json({ error: 'No OTP requested for this email' });
 
-  const { name, password, phone } = record.userData;
-  const hashed = await bcrypt.hash(password, 10);
-  const customer = { id: uuidv4(), name, email, password: hashed, phone, createdAt: new Date() };
-  store.customers.push(customer);
-  delete store.otps[email];
+    // Check expiry
+    if (new Date() > otpRecord.expiry) {
+      await OTP.deleteOne({ email });
+      return res.status(400).json({ error: 'OTP expired' });
+    }
 
-  const token = jwt.sign({ id: customer.id, email, name, role: 'customer' }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: customer.id, name, email, role: 'customer' } });
+    // Verify OTP
+    if (otpRecord.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+
+    // Create user
+    const { name, password, phone } = otpRecord.userData;
+    const hashed = await bcrypt.hash(password, 10);
+    
+    const user = new User({
+      name,
+      email,
+      password: hashed,
+      phone: phone || '',
+      role: 'customer'
+    });
+
+    await user.save();
+
+    // Delete OTP record
+    await OTP.deleteOne({ email });
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, name: user.name, role: 'customer' },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: 'customer' } });
+  } catch (err) {
+    console.error('Error in verify-otp:', err);
+    res.status(500).json({ error: err.message || 'Server error' });
+  }
 });
 
 // Customer: Login
 router.post('/customer/login', async (req, res) => {
-  const { email, password } = req.body;
-  const customer = store.customers.find(c => c.email === email);
-  if (!customer) return res.status(404).json({ error: 'Customer not found' });
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
 
-  const valid = await bcrypt.compare(password, customer.password);
-  if (!valid) return res.status(401).json({ error: 'Invalid password' });
+    const user = await User.findOne({ email, role: 'customer' });
+    if (!user) return res.status(404).json({ error: 'Customer not found' });
 
-  const token = jwt.sign({ id: customer.id, email, name: customer.name, role: 'customer' }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: customer.id, name: customer.name, email, role: 'customer' } });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Invalid password' });
+
+    const token = jwt.sign(
+      { id: user._id, email: user.email, name: user.name, role: 'customer' },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: 'customer' } });
+  } catch (err) {
+    console.error('Error in customer login:', err);
+    res.status(500).json({ error: err.message || 'Server error' });
+  }
 });
 
 // Vendor: Login
 router.post('/vendor/login', async (req, res) => {
-  const { email, password } = req.body;
-  const vendor = store.vendors.find(v => v.email === email);
-  if (!vendor) return res.status(404).json({ error: 'Vendor not found' });
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
 
-  const valid = await bcrypt.compare(password, vendor.password);
-  if (!valid) return res.status(401).json({ error: 'Invalid password' });
+    const vendor = await User.findOne({ email, role: 'vendor' });
+    if (!vendor) return res.status(404).json({ error: 'Vendor not found' });
 
-  const token = jwt.sign({ id: vendor.id, email, name: vendor.name, role: 'vendor', type: vendor.type, companyName: vendor.companyName }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: vendor.id, name: vendor.name, email, role: 'vendor', type: vendor.type, companyName: vendor.companyName } });
+    const valid = await bcrypt.compare(password, vendor.password);
+    if (!valid) return res.status(401).json({ error: 'Invalid password' });
+
+    const token = jwt.sign(
+      {
+        id: vendor._id,
+        email: vendor.email,
+        name: vendor.name,
+        role: 'vendor',
+        type: vendor.vendorType,
+        companyName: vendor.companyName
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: vendor._id,
+        name: vendor.name,
+        email: vendor.email,
+        role: 'vendor',
+        type: vendor.vendorType,
+        companyName: vendor.companyName
+      }
+    });
+  } catch (err) {
+    console.error('Error in vendor login:', err);
+    res.status(500).json({ error: err.message || 'Server error' });
+  }
 });
 
 module.exports = router;
