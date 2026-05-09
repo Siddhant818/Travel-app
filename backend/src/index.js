@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const connectDB = require('./config/db');
+const { renderHomePage } = require('./views/homePage');
 
 const app = express();
 
@@ -41,12 +42,14 @@ if (process.env.NODE_ENV === 'production') {
 
 // ============ Routes ============
 // Root route
-app.get('/', (req, res) => res.json({ 
-  message: 'TravelApp Backend is running!', 
-  version: process.env.APP_VERSION,
-  environment: process.env.NODE_ENV,
-  docs: 'API endpoints: /api/auth, /api/search, /api/bookings, /api/health' 
-}));
+app.get('/', (req, res) => {
+  res.type('html').send(renderHomePage({
+    version: process.env.APP_VERSION,
+    environment: process.env.NODE_ENV,
+    uptime: process.uptime(),
+    healthUrl: '/api/health'
+  }));
+});
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
