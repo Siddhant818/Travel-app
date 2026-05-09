@@ -287,3 +287,10 @@ Similar process to Vercel, works equally well for React apps.
 **Version:** 1.0.0  
 **Last Updated:** 2024  
 **Status:** Production Ready
+
+## Production domains (current)
+
+- Backend (Railway): https://travel-app-production-8cb7.up.railway.app
+- Frontend (Vercel): https://travel-app-mu-gold.vercel.app/
+
+Use these values when configuring `FRONTEND_URL` on the backend host and `REACT_APP_API_URL` on Vercel. Remember to redeploy the frontend after changing `REACT_APP_API_URL` in Vercel so the new value is embedded at build time.
