@@ -10,6 +10,11 @@ const getTransporter = async () => {
 
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
 
+  // Debug logging
+  console.log("SMTP_HOST:", SMTP_HOST);
+  console.log("SMTP_USER:", SMTP_USER);
+  console.log("SMTP_PASS exists:", !!SMTP_PASS);
+
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
     transporter = nodemailer.createTransport({
       host: SMTP_HOST,
