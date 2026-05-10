@@ -87,5 +87,6 @@ app.listen(PORT, () => {
   console.log(`\n✅ TravelApp Backend running on http://localhost:${PORT}`);
   console.log(`📦 Environment: ${process.env.NODE_ENV}`);
   console.log(`🗄️  Database: MongoDB Atlas`);
+  console.log(`📧 SendGrid enabled: ${Boolean(process.env.SENDGRID_API_KEY)}`);
   console.log(`📧 OTPs will be logged to console in development mode\n`);
 });
