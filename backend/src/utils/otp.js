@@ -1,7 +1,8 @@
 const nodemailer = require('nodemailer');
 const dns = require('dns');
+const sgMail = require('@sendgrid/mail');
 
-// Force IPv4 to avoid Gmail SMTP routing issues
+// Force IPv4 to avoid connection issues on hosts with broken IPv6 routing.
 dns.setDefaultResultOrder('ipv4first');
 
 let transporter;
@@ -10,16 +11,11 @@ const getTransporter = async () => {
 
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
 
-  // Debug logging
-  console.log("SMTP_HOST:", SMTP_HOST);
-  console.log("SMTP_USER:", SMTP_USER);
-  console.log("SMTP_PASS exists:", !!SMTP_PASS);
-
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
     const buildOptions = (port, secure) => ({
       host: SMTP_HOST,
-      port: port,
-      secure: secure,
+      port,
+      secure,
       family: 4,
       auth: { user: SMTP_USER, pass: SMTP_PASS },
       connectionTimeout: 10000,
@@ -27,7 +23,6 @@ const getTransporter = async () => {
       socketTimeout: 10000
     });
 
-    // Try primary config (usually port 587, STARTTLS)
     const primaryPort = Number(SMTP_PORT) || 587;
     const primarySecure = primaryPort === 465;
     transporter = nodemailer.createTransport(buildOptions(primaryPort, primarySecure));
@@ -38,19 +33,19 @@ const getTransporter = async () => {
       return transporter;
     } catch (err) {
       console.warn('SMTP primary verify failed:', err && err.code);
-      // If timed out or connection refused, try fallback to 465 (SSL)
+
       if (primaryPort !== 465) {
         const fallbackPort = 465;
         const fallbackSecure = true;
         console.log('Attempting SMTP fallback to port 465 (SSL)');
         transporter = nodemailer.createTransport(buildOptions(fallbackPort, fallbackSecure));
+
         try {
           await transporter.verify();
           console.log('SMTP fallback verify succeeded', { host: SMTP_HOST, port: fallbackPort, secure: fallbackSecure });
           return transporter;
         } catch (err2) {
           console.error('SMTP fallback verify failed:', err2 && err2.code);
-          // throw original error for visibility
           throw err2 || err;
         }
       }
@@ -59,14 +54,14 @@ const getTransporter = async () => {
     }
   }
 
-  // Development fallback: create an Ethereal test account (previewable) and log OTPs
+  // Development fallback: create an Ethereal test account (previewable) and log OTPs.
   if (process.env.NODE_ENV !== 'production') {
     try {
       const testAccount = await nodemailer.createTestAccount();
       transporter = nodemailer.createTransport({
         host: 'smtp.ethereal.email',
         port: 587,
-        family: 4, // Force IPv4
+        family: 4,
         auth: { user: testAccount.user, pass: testAccount.pass }
       });
       console.log('⚠️  Using Ethereal test SMTP account for OTPs (dev only)');
@@ -76,7 +71,6 @@ const getTransporter = async () => {
     }
   }
 
-  // In production, require SMTP to be configured
   throw new Error('SMTP configuration missing. Set SMTP_HOST, SMTP_USER and SMTP_PASS in environment.');
 };
 
@@ -87,6 +81,24 @@ const sendOTPEmail = async (email, otp) => {
   console.log(`\n=============================`);
   console.log(`OTP for ${email}: ${otp}`);
   console.log(`=============================\n`);
+
+  const sendgridKey = process.env.SENDGRID_API_KEY;
+  if (sendgridKey) {
+    sgMail.setApiKey(sendgridKey);
+    try {
+      await sgMail.send({
+        to: email,
+        from: process.env.SMTP_FROM || 'noreply@travelapp.com',
+        subject: 'Your OTP for TravelApp Signup',
+        html: `<h2>Your OTP is: <strong>${otp}</strong></h2><p>Valid for 10 minutes.</p>`
+      });
+      console.log('SendGrid email sent successfully to', email);
+      return otp;
+    } catch (err) {
+      console.error('SendGrid send failed:', err && err.response ? err.response.body : err);
+      throw err;
+    }
+  }
 
   try {
     const tx = await getTransporter();

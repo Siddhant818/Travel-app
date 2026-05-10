@@ -24,7 +24,8 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/travelapp?retryW
 JWT_SECRET=your_super_secret_jwt_key
 JWT_EXPIRY=7d
 
-# Email Configuration (Gmail example)
+# Email Configuration (SendGrid preferred in production)
+SENDGRID_API_KEY=your_sendgrid_api_key_here
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
@@ -167,6 +168,8 @@ Cab Vendor:     vendor@ola.com / password
 4. Add MongoDB plugin
 5. Deploy your backend repo
 6. Set environment variables in Railway dashboard
+	- `SENDGRID_API_KEY` = your SendGrid API key (recommended for production)
+	- Keep `SMTP_*` only as local/dev fallback if you still want Gmail SMTP for testing
 7. Get the production URL
 
 ### Option 2: Render.com
