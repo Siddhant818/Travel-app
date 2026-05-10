@@ -1,4 +1,8 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Force IPv4 to avoid Gmail SMTP routing issues
+dns.setDefaultResultOrder('ipv4first');
 
 let transporter;
 const getTransporter = async () => {
@@ -11,6 +15,7 @@ const getTransporter = async () => {
       host: SMTP_HOST,
       port: Number(SMTP_PORT) || 587,
       secure: Number(SMTP_PORT) === 465,
+      family: 4, // Force IPv4
       auth: { user: SMTP_USER, pass: SMTP_PASS }
     });
     return transporter;
@@ -23,6 +28,7 @@ const getTransporter = async () => {
       transporter = nodemailer.createTransport({
         host: 'smtp.ethereal.email',
         port: 587,
+        family: 4, // Force IPv4
         auth: { user: testAccount.user, pass: testAccount.pass }
       });
       console.log('⚠️  Using Ethereal test SMTP account for OTPs (dev only)');
