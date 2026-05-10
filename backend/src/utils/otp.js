@@ -16,14 +16,47 @@ const getTransporter = async () => {
   console.log("SMTP_PASS exists:", !!SMTP_PASS);
 
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-    transporter = nodemailer.createTransport({
+    const buildOptions = (port, secure) => ({
       host: SMTP_HOST,
-      port: Number(SMTP_PORT) || 587,
-      secure: Number(SMTP_PORT) === 465,
-      family: 4, // Force IPv4
-      auth: { user: SMTP_USER, pass: SMTP_PASS }
+      port: port,
+      secure: secure,
+      family: 4,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
-    return transporter;
+
+    // Try primary config (usually port 587, STARTTLS)
+    const primaryPort = Number(SMTP_PORT) || 587;
+    const primarySecure = primaryPort === 465;
+    transporter = nodemailer.createTransport(buildOptions(primaryPort, primarySecure));
+
+    try {
+      await transporter.verify();
+      console.log('SMTP primary verify succeeded', { host: SMTP_HOST, port: primaryPort, secure: primarySecure });
+      return transporter;
+    } catch (err) {
+      console.warn('SMTP primary verify failed:', err && err.code);
+      // If timed out or connection refused, try fallback to 465 (SSL)
+      if (primaryPort !== 465) {
+        const fallbackPort = 465;
+        const fallbackSecure = true;
+        console.log('Attempting SMTP fallback to port 465 (SSL)');
+        transporter = nodemailer.createTransport(buildOptions(fallbackPort, fallbackSecure));
+        try {
+          await transporter.verify();
+          console.log('SMTP fallback verify succeeded', { host: SMTP_HOST, port: fallbackPort, secure: fallbackSecure });
+          return transporter;
+        } catch (err2) {
+          console.error('SMTP fallback verify failed:', err2 && err2.code);
+          // throw original error for visibility
+          throw err2 || err;
+        }
+      }
+
+      throw err;
+    }
   }
 
   // Development fallback: create an Ethereal test account (previewable) and log OTPs
