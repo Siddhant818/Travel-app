@@ -82,7 +82,7 @@ export default function CustomerSignup() {
           </form>
         ) : (
           <form onSubmit={handleVerifyOTP}>
-            {devOtp && (
+            {process.env.NODE_ENV !== 'production' && devOtp && (
               <div className="otp-hint">
                 <strong>Dev Mode OTP:</strong> {devOtp} <br />
                 <span style={{ fontSize: 11 }}>(In production this would be emailed)</span>

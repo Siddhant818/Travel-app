@@ -39,7 +39,8 @@ npm start
 
 ### Customer Accounts
 - Sign up via `/signup/customer` with Email OTP
-- **Dev Mode**: OTP is printed in the backend terminal console (no real email needed)
+
+> Note: In production the OTP is emailed using SendGrid. Dev-only OTPs are shown locally when `NODE_ENV !== 'production'`.
 
 ---
 
@@ -111,3 +112,21 @@ const transporter = nodemailer.createTransport({
 
 ## 🗄️ To Add a Real Database
 Replace the `store.js` mock arrays with MongoDB (Mongoose) or PostgreSQL (Prisma) models. The route logic stays the same.
+
+---
+
+## 📡 Deployment & Live Links
+
+- **Backend (Railway)**: add your `SENDGRID_API_KEY` and `SMTP_FROM` environment variables in Railway, then redeploy. Example env vars:
+  - `MONGODB_URI`
+  - `JWT_SECRET`
+  - `SENDGRID_API_KEY` (set your SendGrid API key)
+  - `SMTP_FROM` (verified sender, e.g. `noreply@yourdomain.com`)
+
+- **Frontend (Vercel)**: set `REACT_APP_API_URL` to your backend URL (e.g. `https://your-backend.up.railway.app/api`) and redeploy.
+
+- **Live links placeholder**:
+  - Frontend: https://your-frontend.vercel.app
+  - Backend API: https://your-backend.up.railway.app/api
+
+Do NOT commit secrets to GitHub. Replace placeholders above with your actual deployed URLs and verified sender address.

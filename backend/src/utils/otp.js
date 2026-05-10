@@ -77,10 +77,12 @@ const getTransporter = async () => {
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const sendOTPEmail = async (email, otp) => {
-  // Always log OTP to console for debugging (safe in dev only)
-  console.log(`\n=============================`);
-  console.log(`OTP for ${email}: ${otp}`);
-  console.log(`=============================\n`);
+  // Only log OTPs in non-production environments for debugging
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`\n=============================`);
+    console.log(`OTP for ${email}: ${otp}`);
+    console.log(`=============================\n`);
+  }
 
   const sendgridKey = process.env.SENDGRID_API_KEY;
   if (sendgridKey) {

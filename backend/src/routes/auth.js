@@ -32,7 +32,10 @@ router.post('/customer/request-otp', async (req, res) => {
 
     // Send OTP email
     await sendOTPEmail(email, otp);
-    res.json({ message: 'OTP sent to email. Check server console in dev mode.', devOtp: otp });
+    // In non-production only include the OTP in the API response for debugging.
+    const resp = { message: 'OTP sent to email.' };
+    if (process.env.NODE_ENV !== 'production') resp.devOtp = otp;
+    res.json(resp);
   } catch (err) {
     console.error('Error in request-otp:', err);
     res.status(500).json({ error: err.message || 'Server error' });
