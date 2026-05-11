@@ -8,6 +8,7 @@ import HotelCard from '../components/HotelCard';
 import CabCard from '../components/CabCard';
 import ConfirmModal from '../components/ConfirmModal';
 import api from '../utils/api';
+import { emitBookingSync } from '../utils/bookingSync';
 
 function formatPrice(p) {
   return '₹' + p.toLocaleString('en-IN');
@@ -145,6 +146,7 @@ export default function SearchResults() {
           ? hotelDetails
           : { date: searchParams.get('date'), passengers: 1 }
       });
+      emitBookingSync('booking-created', { serviceType: type, serviceId: service.id });
       setBookingSuccess(true);
       setToast({ message: 'Booking confirmed — redirecting to your dashboard', type: 'success' });
       setTimeout(() => { setBookingSuccess(false); navigate('/customer/dashboard'); }, 1600);

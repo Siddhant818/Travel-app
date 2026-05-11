@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import api from '../utils/api';
+import { subscribeBookingSync, emitBookingSync } from '../utils/bookingSync';
 
 const TYPE_ICON = { flight: 'FL', hotel: 'HT', cab: 'CB' };
 
@@ -80,7 +81,15 @@ export default function VendorDashboard() {
     fetchBookings();
     // Poll for updates every 2 seconds
     const interval = setInterval(fetchBookings, 2000);
-    return () => clearInterval(interval);
+    const unsubscribe = subscribeBookingSync(event => {
+      if (event.eventType === 'booking-created' || event.eventType === 'booking-updated') {
+        fetchBookings();
+      }
+    });
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [user]);
 
   const fetchBookings = async () => {
@@ -95,6 +104,7 @@ export default function VendorDashboard() {
     setActionLoading(prev => ({ ...prev, [bookingId]: 'accepting' }));
     try {
       await api.patch(`/bookings/${bookingId}/accept`);
+      emitBookingSync('booking-updated', { bookingId, status: 'accepted' });
       await fetchBookings();
     } catch (e) { alert(e.response?.data?.error || 'Error'); }
     setActionLoading(prev => ({ ...prev, [bookingId]: null }));
@@ -104,6 +114,7 @@ export default function VendorDashboard() {
     setActionLoading(prev => ({ ...prev, [bookingId]: 'delivering' }));
     try {
       await api.patch(`/bookings/${bookingId}/deliver`);
+      emitBookingSync('booking-updated', { bookingId, status: 'delivered' });
       await fetchBookings();
     } catch (e) { alert(e.response?.data?.error || 'Error'); }
     setActionLoading(prev => ({ ...prev, [bookingId]: null }));

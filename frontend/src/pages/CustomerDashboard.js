@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import api from '../utils/api';
+import { subscribeBookingSync } from '../utils/bookingSync';
 
 const TYPE_ICON = { flight: 'FL', hotel: 'HT', cab: 'CB' };
 
@@ -79,7 +80,15 @@ export default function CustomerDashboard() {
     fetchBookings();
     // Poll for updates every 2 seconds
     const interval = setInterval(fetchBookings, 2000);
-    return () => clearInterval(interval);
+    const unsubscribe = subscribeBookingSync(event => {
+      if (event.eventType === 'booking-created' || event.eventType === 'booking-updated') {
+        fetchBookings();
+      }
+    });
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [user]);
 
   const fetchBookings = async () => {
