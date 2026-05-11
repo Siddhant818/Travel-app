@@ -7,6 +7,12 @@ const OTP = require('../models/OTP');
 const { generateOTP, sendOTPEmail } = require('../utils/otp');
 const { JWT_SECRET } = require('../middleware/auth');
 
+const STORE_VENDOR_IDS = {
+  flight: 'v1',
+  hotel: 'v2',
+  cab: 'v3'
+};
+
 // Customer: Request OTP (step 1 of signup)
 router.post('/customer/request-otp', async (req, res) => {
   try {
@@ -129,13 +135,15 @@ router.post('/vendor/login', async (req, res) => {
     const valid = await bcrypt.compare(password, vendor.password);
     if (!valid) return res.status(401).json({ error: 'Invalid password' });
 
+    const storeVendorId = STORE_VENDOR_IDS[vendor.type] || vendor._id.toString();
+
     const token = jwt.sign(
       {
-        id: vendor._id,
+        id: storeVendorId,
         email: vendor.email,
         name: vendor.name,
         role: 'vendor',
-        type: vendor.vendorType,
+        type: vendor.type,
         companyName: vendor.companyName
       },
       JWT_SECRET,
@@ -145,11 +153,11 @@ router.post('/vendor/login', async (req, res) => {
     res.json({
       token,
       user: {
-        id: vendor._id,
+        id: storeVendorId,
         name: vendor.name,
         email: vendor.email,
         role: 'vendor',
-        type: vendor.vendorType,
+        type: vendor.type,
         companyName: vendor.companyName
       }
     });

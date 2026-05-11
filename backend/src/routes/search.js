@@ -8,7 +8,12 @@ router.get('/flights', (req, res) => {
   let results = store.flights;
   if (from) results = results.filter(f => f.from.toLowerCase().includes(from.toLowerCase()));
   if (to) results = results.filter(f => f.to.toLowerCase().includes(to.toLowerCase()));
-  if (date) results = results.filter(f => f.date === date);
+  if (date) {
+    results = results.map(f => ({
+      ...f,
+      date
+    }));
+  }
   res.json(results);
 });
 

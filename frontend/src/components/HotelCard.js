@@ -1,8 +1,11 @@
 import React from 'react';
 
-export default function HotelCard({ hotel, onBook, onSelect }) {
+export default function HotelCard({ hotel, stayDetails, onBook, onSelect }) {
   const formatPrice = p => '₹' + p.toLocaleString('en-IN');
   const stars = '★'.repeat(hotel.rating);
+  const staySummary = stayDetails?.checkInDate && stayDetails?.checkInTime && stayDetails?.checkOutDate && stayDetails?.checkOutTime
+    ? `${stayDetails.checkInDate} ${stayDetails.checkInTime} → ${stayDetails.checkOutDate} ${stayDetails.checkOutTime}`
+    : '';
 
   return (
     <div className="hotel-card">
@@ -10,6 +13,7 @@ export default function HotelCard({ hotel, onBook, onSelect }) {
       <div className="hotel-info">
         <div className="hotel-name">{hotel.name}</div>
         <div className="hotel-city">{hotel.city} · {hotel.roomType}</div>
+        {staySummary && <div style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 700, marginBottom: 8 }}>{staySummary}</div>}
         <div className="hotel-stars">{stars}</div>
         <div className="hotel-amenities">
           {hotel.amenities.map(a => <span className="amenity-tag" key={a}>{a}</span>)}

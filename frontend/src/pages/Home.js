@@ -13,6 +13,8 @@ const CITIES = ['Delhi', 'Mumbai', 'Bangalore', 'Kolkata', 'Chennai', 'Hyderabad
 export default function Home() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('flights');
+  const [flightSearchError, setFlightSearchError] = useState('');
+  const [hotelSearchError, setHotelSearchError] = useState('');
 
   // Flight form
   const [flightFrom, setFlightFrom] = useState('');
@@ -21,18 +23,40 @@ export default function Home() {
 
   // Hotel form
   const [hotelCity, setHotelCity] = useState('');
+  const [hotelCheckInDate, setHotelCheckInDate] = useState('');
+  const [hotelCheckInTime, setHotelCheckInTime] = useState('');
+  const [hotelCheckOutDate, setHotelCheckOutDate] = useState('');
+  const [hotelCheckOutTime, setHotelCheckOutTime] = useState('');
 
   // Cab form
   const [cabFrom, setCabFrom] = useState('');
 
   const handleFlightSearch = (e) => {
     e.preventDefault();
+    if (!flightFrom.trim() || !flightTo.trim() || !flightDate.trim()) {
+      setFlightSearchError('Please select from, to, and date before searching flights.');
+      return;
+    }
+    setFlightSearchError('');
     navigate(`/search/flights?from=${flightFrom}&to=${flightTo}&date=${flightDate}`);
   };
 
   const handleHotelSearch = (e) => {
     e.preventDefault();
-    navigate(`/search/hotels?city=${hotelCity}`);
+    if (!hotelCity.trim() || !hotelCheckInDate.trim() || !hotelCheckInTime.trim() || !hotelCheckOutDate.trim() || !hotelCheckOutTime.trim()) {
+      setHotelSearchError('Please select city, check-in, and check-out date/time before searching hotels.');
+      return;
+    }
+
+    const checkIn = new Date(`${hotelCheckInDate}T${hotelCheckInTime}`);
+    const checkOut = new Date(`${hotelCheckOutDate}T${hotelCheckOutTime}`);
+    if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime()) || checkOut <= checkIn) {
+      setHotelSearchError('Check-out must be after check-in.');
+      return;
+    }
+
+    setHotelSearchError('');
+    navigate(`/search/hotels?city=${hotelCity}&checkInDate=${hotelCheckInDate}&checkInTime=${hotelCheckInTime}&checkOutDate=${hotelCheckOutDate}&checkOutTime=${hotelCheckOutTime}`);
   };
 
   const handleCabSearch = (e) => {
@@ -69,29 +93,25 @@ export default function Home() {
                 <div className="search-row cols-3">
                   <div className="field-group">
                     <label className="field-label">From</label>
-                    <input
+                    <select
                       className="field-input"
-                      placeholder="e.g. Delhi"
                       value={flightFrom}
                       onChange={e => setFlightFrom(e.target.value)}
-                      list="cities-from"
-                    />
-                    <datalist id="cities-from">
-                      {CITIES.map(c => <option key={c} value={c} />)}
-                    </datalist>
+                    >
+                      <option value="">Select departure</option>
+                      {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                   <div className="field-group">
                     <label className="field-label">To</label>
-                    <input
+                    <select
                       className="field-input"
-                      placeholder="e.g. Mumbai"
                       value={flightTo}
                       onChange={e => setFlightTo(e.target.value)}
-                      list="cities-to"
-                    />
-                    <datalist id="cities-to">
-                      {CITIES.map(c => <option key={c} value={c} />)}
-                    </datalist>
+                    >
+                      <option value="">Select destination</option>
+                      {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                   <div className="field-group">
                     <label className="field-label">Date</label>
@@ -103,13 +123,14 @@ export default function Home() {
                     />
                   </div>
                 </div>
-                <button type="submit" className="search-btn">Search Flights</button>
+                <button type="submit" className="search-btn" disabled={!flightFrom.trim() || !flightTo.trim() || !flightDate.trim()}>Search Flights</button>
+                {flightSearchError && <div className="error-msg" style={{ marginTop: 12, marginBottom: 0 }}>{flightSearchError}</div>}
               </form>
             )}
 
             {activeTab === 'hotels' && (
               <form onSubmit={handleHotelSearch}>
-                <div className="search-row cols-1">
+                <div className="search-row cols-3">
                   <div className="field-group">
                     <label className="field-label">City</label>
                     <input
@@ -123,8 +144,45 @@ export default function Home() {
                       {CITIES.map(c => <option key={c} value={c} />)}
                     </datalist>
                   </div>
+                  <div className="field-group">
+                    <label className="field-label">Check-in Date</label>
+                    <input
+                      className="field-input"
+                      type="date"
+                      value={hotelCheckInDate}
+                      onChange={e => setHotelCheckInDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Check-in Time</label>
+                    <input
+                      className="field-input"
+                      type="time"
+                      value={hotelCheckInTime}
+                      onChange={e => setHotelCheckInTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Check-out Date</label>
+                    <input
+                      className="field-input"
+                      type="date"
+                      value={hotelCheckOutDate}
+                      onChange={e => setHotelCheckOutDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Check-out Time</label>
+                    <input
+                      className="field-input"
+                      type="time"
+                      value={hotelCheckOutTime}
+                      onChange={e => setHotelCheckOutTime(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <button type="submit" className="search-btn">Search Hotels</button>
+                {hotelSearchError && <div className="error-msg" style={{ marginTop: 12, marginBottom: 0 }}>{hotelSearchError}</div>}
               </form>
             )}
 

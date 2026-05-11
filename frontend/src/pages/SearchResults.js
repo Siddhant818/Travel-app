@@ -29,15 +29,34 @@ export default function SearchResults() {
   const [selectedService, setSelectedService] = useState(null);
   const [sortBy, setSortBy] = useState('price');
   const [priceFilter, setPriceFilter] = useState('all');
+  const [searchError, setSearchError] = useState('');
   
   // Editable search fields
   const [searchFrom, setSearchFrom] = useState(searchParams.get('from') || '');
   const [searchTo, setSearchTo] = useState(searchParams.get('to') || searchParams.get('city') || '');
   const [searchDate, setSearchDate] = useState(searchParams.get('date') || '');
+  const [hotelCheckInDate, setHotelCheckInDate] = useState(searchParams.get('checkInDate') || '');
+  const [hotelCheckInTime, setHotelCheckInTime] = useState(searchParams.get('checkInTime') || '');
+  const [hotelCheckOutDate, setHotelCheckOutDate] = useState(searchParams.get('checkOutDate') || '');
+  const [hotelCheckOutTime, setHotelCheckOutTime] = useState(searchParams.get('checkOutTime') || '');
 
   const CITIES = ['Delhi', 'Mumbai', 'Bangalore', 'Kolkata', 'Chennai', 'Hyderabad', 'Pune', 'Ahmedabad'];
+  const canSearchFlights = type !== 'flights' || (searchFrom.trim() && searchTo.trim() && searchDate.trim());
+
+  const flightFilters = [
+    { key: 'all', label: 'All' },
+    { key: 'budget', label: 'Budget' },
+    { key: 'premium', label: 'Premium' },
+    { key: 'non-stop', label: 'Non-stop only' },
+  ];
 
   useEffect(() => {
+    if (type === 'flights' && !canSearchFlights) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
     const fetchResults = async () => {
       setLoading(true);
       try {
@@ -48,19 +67,49 @@ export default function SearchResults() {
       setLoading(false);
     };
     fetchResults();
-  }, [type, searchParams]);
+  }, [type, searchParams, canSearchFlights]);
 
   const handleUpdateSearch = () => {
+    if (type === 'flights' && (!searchFrom.trim() || !searchTo.trim() || !searchDate.trim())) {
+      setSearchError('Select from, to, and date before searching flights.');
+      setResults([]);
+      return;
+    }
+
+    if (type === 'hotels') {
+      if (!searchFrom.trim() || !hotelCheckInDate.trim() || !hotelCheckInTime.trim() || !hotelCheckOutDate.trim() || !hotelCheckOutTime.trim()) {
+        setSearchError('Select city, check-in, and check-out date/time before searching hotels.');
+        setResults([]);
+        return;
+      }
+
+      const checkIn = new Date(`${hotelCheckInDate}T${hotelCheckInTime}`);
+      const checkOut = new Date(`${hotelCheckOutDate}T${hotelCheckOutTime}`);
+      if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime()) || checkOut <= checkIn) {
+        setSearchError('Check-out must be after check-in.');
+        setResults([]);
+        return;
+      }
+    }
+
+    setSearchError('');
     const newParams = new URLSearchParams();
-    if (searchFrom) newParams.set('from', searchFrom);
-    if (searchTo) newParams.set(type === 'hotels' ? 'city' : type === 'cabs' ? 'from' : 'to', searchTo);
+    if (searchFrom) newParams.set(type === 'hotels' ? 'city' : 'from', searchFrom);
+    if (searchTo && type !== 'hotels') newParams.set(type === 'cabs' ? 'from' : 'to', searchTo);
     if (searchDate) newParams.set('date', searchDate);
+    if (type === 'hotels') {
+      if (hotelCheckInDate) newParams.set('checkInDate', hotelCheckInDate);
+      if (hotelCheckInTime) newParams.set('checkInTime', hotelCheckInTime);
+      if (hotelCheckOutDate) newParams.set('checkOutDate', hotelCheckOutDate);
+      if (hotelCheckOutTime) newParams.set('checkOutTime', hotelCheckOutTime);
+    }
     setSearchParams(newParams);
   };
 
   const handleRouteClick = (from, to) => {
     setSearchFrom(from);
     setSearchTo(to);
+    setSearchError('');
     const newParams = new URLSearchParams();
     newParams.set('from', from);
     newParams.set(type === 'hotels' ? 'city' : 'to', to);
@@ -113,7 +162,16 @@ export default function SearchResults() {
   ];
 
   // Sort and filter results
-  const sortedResults = [...results].sort((a, b) => {
+  const filteredResults = type === 'flights' && priceFilter !== 'all'
+    ? results.filter(flight => {
+        if (priceFilter === 'budget') return flight.price <= 4000;
+        if (priceFilter === 'premium') return flight.price > 4000;
+        if (priceFilter === 'non-stop') return true;
+        return true;
+      })
+    : results;
+
+  const sortedResults = [...filteredResults].sort((a, b) => {
     if (sortBy === 'price') return a.price - b.price;
     if (sortBy === 'price-desc') return b.price - a.price;
     return 0;
@@ -121,6 +179,9 @@ export default function SearchResults() {
 
   const icons = { flights: 'Flights', hotels: 'Hotels', cabs: 'Cabs' };
   const title = type?.charAt(0).toUpperCase() + type?.slice(1);
+  const hotelStayLabel = type === 'hotels' && hotelCheckInDate && hotelCheckInTime && hotelCheckOutDate && hotelCheckOutTime
+    ? `${hotelCheckInDate} ${hotelCheckInTime} → ${hotelCheckOutDate} ${hotelCheckOutTime}`
+    : '';
 
   return (
     <div>
@@ -128,7 +189,7 @@ export default function SearchResults() {
       <div className="page fade-in">
         <div className="results-header fade-in">
           <h2>{title} Results</h2>
-          <p>{results.length} results found {searchParams.get('from') ? `for "${searchParams.get('from')}"` : ''}</p>
+          <p>{type === 'flights' && !canSearchFlights ? 'Choose from, to, and date to see flight results' : type === 'hotels' && hotelStayLabel ? `${results.length} results found for ${searchFrom}` : `${results.length} results found ${searchParams.get('from') ? `for "${searchParams.get('from')}"` : ''}`}</p>
         </div>
 
         {/* Editable Search Bar */}
@@ -138,12 +199,61 @@ export default function SearchResults() {
               <>
                 <div className="field-group" style={{ flex: '1 1 150px' }}>
                   <label className="field-label">{type === 'flights' ? 'From' : type === 'hotels' ? 'City' : 'Pickup'}</label>
-                  <input className="field-input" placeholder="Enter location" value={searchFrom} onChange={e => setSearchFrom(e.target.value)} />
+                  {type === 'flights' ? (
+                    <select className="field-input" value={searchFrom} onChange={e => setSearchFrom(e.target.value)}>
+                      <option value="">Select departure</option>
+                      {CITIES.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input className="field-input" placeholder="Enter location" value={searchFrom} onChange={e => setSearchFrom(e.target.value)} />
+                  )}
                 </div>
-                {type !== 'cabs' && (
+                {type === 'hotels' && (
+                  <>
+                    <div className="field-group" style={{ flex: '1 1 150px' }}>
+                      <label className="field-label">Check-in Date</label>
+                      <input className="field-input" type="date" value={hotelCheckInDate} onChange={e => setHotelCheckInDate(e.target.value)} />
+                    </div>
+                    <div className="field-group" style={{ flex: '1 1 150px' }}>
+                      <label className="field-label">Check-in Time</label>
+                      <input className="field-input" type="time" value={hotelCheckInTime} onChange={e => setHotelCheckInTime(e.target.value)} />
+                    </div>
+                    <div className="field-group" style={{ flex: '1 1 150px' }}>
+                      <label className="field-label">Check-out Date</label>
+                      <input className="field-input" type="date" value={hotelCheckOutDate} onChange={e => setHotelCheckOutDate(e.target.value)} />
+                    </div>
+                    <div className="field-group" style={{ flex: '1 1 150px' }}>
+                      <label className="field-label">Check-out Time</label>
+                      <input className="field-input" type="time" value={hotelCheckOutTime} onChange={e => setHotelCheckOutTime(e.target.value)} />
+                    </div>
+                  </>
+                )}
+                {type === 'flights' && (
+                  <div className="field-group" style={{ flex: '1 1 150px' }}>
+                    <label className="field-label">To</label>
+                    <select className="field-input" value={searchTo} onChange={e => setSearchTo(e.target.value)}>
+                      <option value="">Select destination</option>
+                      {CITIES.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {type !== 'cabs' && type !== 'hotels' && (
                   <div className="field-group" style={{ flex: '1 1 150px' }}>
                     <label className="field-label">{type === 'flights' ? 'To' : 'Check-in'}</label>
-                    <input className="field-input" placeholder={type === 'flights' ? 'Enter destination' : 'Date'} value={searchTo} onChange={e => setSearchTo(e.target.value)} />
+                    {type === 'flights' ? (
+                      <select className="field-input" value={searchTo} onChange={e => setSearchTo(e.target.value)}>
+                        <option value="">Select destination</option>
+                        {CITIES.map(city => (
+                          <option key={city} value={city}>{city}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input className="field-input" placeholder={type === 'flights' ? 'Enter destination' : 'Date'} value={searchTo} onChange={e => setSearchTo(e.target.value)} />
+                    )}
                   </div>
                 )}
                 {type === 'cabs' && (
@@ -160,8 +270,16 @@ export default function SearchResults() {
                 )}
               </>
             )}
-            <button className="search-btn" onClick={handleUpdateSearch} style={{ padding: '12px 24px', height: 'fit-content', whiteSpace: 'nowrap' }}>Update</button>
+            <button
+              className="search-btn"
+              onClick={handleUpdateSearch}
+              disabled={type === 'flights' && !canSearchFlights}
+              style={{ padding: '12px 24px', height: 'fit-content', whiteSpace: 'nowrap', width: 'auto' }}
+            >
+              Update
+            </button>
           </div>
+          {searchError && <div className="error-msg" style={{ marginTop: 16, marginBottom: 0 }}>{searchError}</div>}
         </div>
 
         {bookingSuccess && (
@@ -197,10 +315,16 @@ export default function SearchResults() {
             </div>
 
             <div className="filters-bar">
-              <div className="filter-tag active">All</div>
-              <div className="filter-tag">Budget</div>
-              <div className="filter-tag">Premium</div>
-              <div className="filter-tag">Non-stop only</div>
+              {flightFilters.map(filter => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  className={`filter-tag ${priceFilter === filter.key ? 'active' : ''}`}
+                  onClick={() => setPriceFilter(filter.key)}
+                >
+                  {filter.label}
+                </button>
+              ))}
               <div className="sort-options">
                 <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Sort by:</label>
                 <select className="sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
@@ -231,6 +355,12 @@ export default function SearchResults() {
               </div>
             ))}
           </div>
+        ) : type === 'flights' && !canSearchFlights ? (
+          <div className="empty-state">
+            <div className="empty-icon">search</div>
+            <h3>Search not ready</h3>
+            <p>Pick departure, destination, and date to load flight results</p>
+          </div>
         ) : results.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">search</div>
@@ -246,7 +376,17 @@ export default function SearchResults() {
             ))}
             {type === 'hotels' && sortedResults.map(h => (
               <div key={h.id} className="result-card fade-in">
-                <HotelCard hotel={h} onBook={handleStartBooking} onSelect={s => setToast({ message: `Selected ${s.name} — ${s.city}`, type: 'info' })} />
+                <HotelCard
+                  hotel={h}
+                  stayDetails={{
+                    checkInDate: hotelCheckInDate,
+                    checkInTime: hotelCheckInTime,
+                    checkOutDate: hotelCheckOutDate,
+                    checkOutTime: hotelCheckOutTime,
+                  }}
+                  onBook={handleStartBooking}
+                  onSelect={s => setToast({ message: `Selected ${s.name} — ${s.city}`, type: 'info' })}
+                />
               </div>
             ))}
             {type === 'cabs' && sortedResults.map(c => (
@@ -259,7 +399,7 @@ export default function SearchResults() {
         <ConfirmModal
           open={confirmOpen}
           title="Confirm booking"
-          body={selectedService ? (type === 'flights' ? `${selectedService.airline} ${selectedService.from} → ${selectedService.to} · ₹${selectedService.price}` : type === 'hotels' ? `${selectedService.name} · ${selectedService.city} · ₹${selectedService.price}` : `${selectedService.type} · ${selectedService.from} → ${selectedService.to} · ₹${selectedService.price}`) : ''}
+          body={selectedService ? (type === 'flights' ? `${selectedService.airline} ${selectedService.from} → ${selectedService.to} · ₹${selectedService.price}` : type === 'hotels' ? `${selectedService.name} · ${selectedService.city} · ₹${selectedService.price}${hotelStayLabel ? ` · ${hotelStayLabel}` : ''}` : `${selectedService.type} · ${selectedService.from} → ${selectedService.to} · ₹${selectedService.price}`) : ''}
           onCancel={() => setConfirmOpen(false)}
           onConfirm={confirmBooking}
           confirmLabel="Confirm & Pay"
