@@ -15,6 +15,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('flights');
   const [flightSearchError, setFlightSearchError] = useState('');
   const [hotelSearchError, setHotelSearchError] = useState('');
+  const today = new Date().toISOString().split('T')[0];
 
   // Flight form
   const [flightFrom, setFlightFrom] = useState('');
@@ -118,6 +119,7 @@ export default function Home() {
                     <input
                       className="field-input"
                       type="date"
+                      min={today}
                       value={flightDate}
                       onChange={e => setFlightDate(e.target.value)}
                     />
@@ -149,6 +151,7 @@ export default function Home() {
                     <input
                       className="field-input"
                       type="date"
+                      min={today}
                       value={hotelCheckInDate}
                       onChange={e => setHotelCheckInDate(e.target.value)}
                     />
@@ -167,6 +170,7 @@ export default function Home() {
                     <input
                       className="field-input"
                       type="date"
+                      min={today}
                       value={hotelCheckOutDate}
                       onChange={e => setHotelCheckOutDate(e.target.value)}
                     />

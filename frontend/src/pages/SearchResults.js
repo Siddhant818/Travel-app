@@ -41,14 +41,10 @@ export default function SearchResults() {
   const [hotelCheckOutTime, setHotelCheckOutTime] = useState(searchParams.get('checkOutTime') || '');
 
   const CITIES = ['Delhi', 'Mumbai', 'Bangalore', 'Kolkata', 'Chennai', 'Hyderabad', 'Pune', 'Ahmedabad'];
+  const today = new Date().toISOString().split('T')[0];
   const canSearchFlights = type !== 'flights' || (searchFrom.trim() && searchTo.trim() && searchDate.trim());
 
-  const flightFilters = [
-    { key: 'all', label: 'All' },
-    { key: 'budget', label: 'Budget' },
-    { key: 'premium', label: 'Premium' },
-    { key: 'non-stop', label: 'Non-stop only' },
-  ];
+  const airlineFilters = ['all', ...new Set(results.map(flight => flight.airline).filter(Boolean))];
 
   useEffect(() => {
     if (type === 'flights' && !canSearchFlights) {
@@ -163,12 +159,7 @@ export default function SearchResults() {
 
   // Sort and filter results
   const filteredResults = type === 'flights' && priceFilter !== 'all'
-    ? results.filter(flight => {
-        if (priceFilter === 'budget') return flight.price <= 4000;
-        if (priceFilter === 'premium') return flight.price > 4000;
-        if (priceFilter === 'non-stop') return true;
-        return true;
-      })
+    ? results.filter(flight => flight.airline === priceFilter)
     : results;
 
   const sortedResults = [...filteredResults].sort((a, b) => {
@@ -214,7 +205,7 @@ export default function SearchResults() {
                   <>
                     <div className="field-group" style={{ flex: '1 1 150px' }}>
                       <label className="field-label">Check-in Date</label>
-                      <input className="field-input" type="date" value={hotelCheckInDate} onChange={e => setHotelCheckInDate(e.target.value)} />
+                      <input className="field-input" type="date" min={today} value={hotelCheckInDate} onChange={e => setHotelCheckInDate(e.target.value)} />
                     </div>
                     <div className="field-group" style={{ flex: '1 1 150px' }}>
                       <label className="field-label">Check-in Time</label>
@@ -222,7 +213,7 @@ export default function SearchResults() {
                     </div>
                     <div className="field-group" style={{ flex: '1 1 150px' }}>
                       <label className="field-label">Check-out Date</label>
-                      <input className="field-input" type="date" value={hotelCheckOutDate} onChange={e => setHotelCheckOutDate(e.target.value)} />
+                      <input className="field-input" type="date" min={today} value={hotelCheckOutDate} onChange={e => setHotelCheckOutDate(e.target.value)} />
                     </div>
                     <div className="field-group" style={{ flex: '1 1 150px' }}>
                       <label className="field-label">Check-out Time</label>
@@ -241,21 +232,6 @@ export default function SearchResults() {
                     </select>
                   </div>
                 )}
-                {type !== 'cabs' && type !== 'hotels' && (
-                  <div className="field-group" style={{ flex: '1 1 150px' }}>
-                    <label className="field-label">{type === 'flights' ? 'To' : 'Check-in'}</label>
-                    {type === 'flights' ? (
-                      <select className="field-input" value={searchTo} onChange={e => setSearchTo(e.target.value)}>
-                        <option value="">Select destination</option>
-                        {CITIES.map(city => (
-                          <option key={city} value={city}>{city}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input className="field-input" placeholder={type === 'flights' ? 'Enter destination' : 'Date'} value={searchTo} onChange={e => setSearchTo(e.target.value)} />
-                    )}
-                  </div>
-                )}
                 {type === 'cabs' && (
                   <div className="field-group" style={{ flex: '1 1 150px' }}>
                     <label className="field-label">Dropoff</label>
@@ -265,7 +241,7 @@ export default function SearchResults() {
                 {type === 'flights' && (
                   <div className="field-group" style={{ flex: '1 1 120px' }}>
                     <label className="field-label">Date</label>
-                    <input className="field-input" type="date" value={searchDate} onChange={e => setSearchDate(e.target.value)} />
+                    <input className="field-input" type="date" min={today} value={searchDate} onChange={e => setSearchDate(e.target.value)} />
                   </div>
                 )}
               </>
@@ -315,14 +291,14 @@ export default function SearchResults() {
             </div>
 
             <div className="filters-bar">
-              {flightFilters.map(filter => (
+              {airlineFilters.map(filter => (
                 <button
-                  key={filter.key}
+                  key={filter}
                   type="button"
-                  className={`filter-tag ${priceFilter === filter.key ? 'active' : ''}`}
-                  onClick={() => setPriceFilter(filter.key)}
+                  className={`filter-tag ${priceFilter === filter ? 'active' : ''}`}
+                  onClick={() => setPriceFilter(filter)}
                 >
-                  {filter.label}
+                  {filter === 'all' ? 'All Airlines' : filter}
                 </button>
               ))}
               <div className="sort-options">
