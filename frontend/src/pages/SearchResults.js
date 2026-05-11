@@ -46,7 +46,7 @@ export default function SearchResults() {
   const today = new Date().toISOString().split('T')[0];
   const canSearchFlights = type !== 'flights' || (searchFrom.trim() && searchTo.trim() && searchDate.trim());
 
-  const flightFilters = ['all', 'Non-stop', 'Direct'];
+  const flightFilters = ['all', 'Non-stop', 'With stop'];
 
   const getHotelStayNights = () => {
     if (!hotelCheckInDate || !hotelCheckOutDate) return 1;
@@ -310,47 +310,51 @@ export default function SearchResults() {
 
         {!loading && results.length > 0 && (
           <>
-            <div className="popular-routes">
-              <div className="popular-title">Popular Routes</div>
-              <div className="routes-grid">
-                {popularRoutes.map((r, i) => {
-                  const cityMap = { 'DEL': 'Delhi', 'BOM': 'Mumbai', 'BLR': 'Bangalore', 'CCU': 'Kolkata', 'HYD': 'Hyderabad', 'CHE': 'Chennai', 'PNQ': 'Pune' };
-                  return (
-                    <div 
-                      key={i} 
-                      className="route-card" 
-                      onClick={() => handleRouteClick(cityMap[r.from], cityMap[r.to])}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <div className="route-from">{r.from}</div>
-                      <div className="route-arrow">→</div>
-                      <div className="route-to">{r.to}</div>
-                      <div className="route-price">From ₹{r.price}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {type === 'flights' && (
+              <>
+                <div className="popular-routes">
+                  <div className="popular-title">Popular Routes</div>
+                  <div className="routes-grid">
+                    {popularRoutes.map((r, i) => {
+                      const cityMap = { 'DEL': 'Delhi', 'BOM': 'Mumbai', 'BLR': 'Bangalore', 'CCU': 'Kolkata', 'HYD': 'Hyderabad', 'CHE': 'Chennai', 'PNQ': 'Pune' };
+                      return (
+                        <div 
+                          key={i} 
+                          className="route-card" 
+                          onClick={() => handleRouteClick(cityMap[r.from], cityMap[r.to])}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <div className="route-from">{r.from}</div>
+                          <div className="route-arrow">→</div>
+                          <div className="route-to">{r.to}</div>
+                          <div className="route-price">From ₹{r.price}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            <div className="filters-bar">
-              {flightFilters.map(filter => (
-                <button
-                  key={filter}
-                  type="button"
-                  className={`filter-tag ${priceFilter === filter ? 'active' : ''}`}
-                  onClick={() => setPriceFilter(filter)}
-                >
-                  {filter === 'all' ? 'All Flights' : filter}
-                </button>
-              ))}
-              <div className="sort-options">
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Sort by:</label>
-                <select className="sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-                  <option value="price">Price: Low to High</option>
-                  <option value="price-desc">Price: High to Low</option>
-                </select>
-              </div>
-            </div>
+                <div className="filters-bar">
+                  {flightFilters.map(filter => (
+                    <button
+                      key={filter}
+                      type="button"
+                      className={`filter-tag ${priceFilter === filter ? 'active' : ''}`}
+                      onClick={() => setPriceFilter(filter)}
+                    >
+                      {filter === 'all' ? 'All Flights' : filter}
+                    </button>
+                  ))}
+                  <div className="sort-options">
+                    <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Sort by:</label>
+                    <select className="sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                      <option value="price">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
 

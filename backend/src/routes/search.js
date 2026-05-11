@@ -20,12 +20,14 @@ router.get('/flights', (req, res) => {
     results = results.map((f, index) => ({
       ...f,
       date,
-      tripType: index % 2 === 0 ? 'Non-stop' : 'Direct'
+      tripType: index % 2 === 0 ? 'Non-stop' : 'With stop',
+      stopsText: index % 2 === 0 ? 'Non-stop' : '1 stop'
     }));
   } else {
     results = results.map((f, index) => ({
       ...f,
-      tripType: index % 2 === 0 ? 'Non-stop' : 'Direct'
+      tripType: index % 2 === 0 ? 'Non-stop' : 'With stop',
+      stopsText: index % 2 === 0 ? 'Non-stop' : '1 stop'
     }));
   }
   res.json(results);
