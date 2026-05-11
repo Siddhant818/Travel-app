@@ -41,10 +41,19 @@ export default function SearchResults() {
   const [hotelCheckOutTime, setHotelCheckOutTime] = useState(searchParams.get('checkOutTime') || '');
 
   const CITIES = ['Delhi', 'Mumbai', 'Bangalore', 'Kolkata', 'Chennai', 'Hyderabad', 'Pune', 'Ahmedabad'];
+  const CAB_PICKUPS = ['Delhi Airport', 'Mumbai Airport', 'Bangalore Airport', 'Chennai Airport', 'Hyderabad Airport'];
   const today = new Date().toISOString().split('T')[0];
   const canSearchFlights = type !== 'flights' || (searchFrom.trim() && searchTo.trim() && searchDate.trim());
 
-  const airlineFilters = ['all', ...new Set(results.map(flight => flight.airline).filter(Boolean))];
+  const flightFilters = ['all', 'Non-stop', 'Direct'];
+
+  const getHotelStayNights = () => {
+    if (!hotelCheckInDate || !hotelCheckOutDate) return 1;
+    const checkIn = new Date(`${hotelCheckInDate}T${hotelCheckInTime || '00:00'}`);
+    const checkOut = new Date(`${hotelCheckOutDate}T${hotelCheckOutTime || '00:00'}`);
+    const diff = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+    return Number.isFinite(diff) && diff > 0 ? diff : 1;
+  };
 
   useEffect(() => {
     if (type === 'flights' && !canSearchFlights) {
@@ -120,10 +129,21 @@ export default function SearchResults() {
     }
     setBookingLoading(true);
     try {
+      const hotelDetails = type === 'hotels' ? {
+        checkInDate: hotelCheckInDate,
+        checkInTime: hotelCheckInTime,
+        checkOutDate: hotelCheckOutDate,
+        checkOutTime: hotelCheckOutTime,
+        nights: hotelStayNights,
+        totalPrice: service.price * hotelStayNights
+      } : {};
+
       await api.post('/bookings', {
         serviceType: type === 'flights' ? 'flight' : type === 'hotels' ? 'hotel' : 'cab',
         serviceId: service.id,
-        details: { date: searchParams.get('date'), passengers: 1 }
+        details: type === 'hotels'
+          ? hotelDetails
+          : { date: searchParams.get('date'), passengers: 1 }
       });
       setBookingSuccess(true);
       setToast({ message: 'Booking confirmed — redirecting to your dashboard', type: 'success' });
@@ -159,7 +179,7 @@ export default function SearchResults() {
 
   // Sort and filter results
   const filteredResults = type === 'flights' && priceFilter !== 'all'
-    ? results.filter(flight => flight.airline === priceFilter)
+    ? results.filter(flight => flight.tripType === priceFilter)
     : results;
 
   const sortedResults = [...filteredResults].sort((a, b) => {
@@ -173,6 +193,7 @@ export default function SearchResults() {
   const hotelStayLabel = type === 'hotels' && hotelCheckInDate && hotelCheckInTime && hotelCheckOutDate && hotelCheckOutTime
     ? `${hotelCheckInDate} ${hotelCheckInTime} → ${hotelCheckOutDate} ${hotelCheckOutTime}`
     : '';
+  const hotelStayNights = type === 'hotels' ? getHotelStayNights() : 1;
 
   return (
     <div>
@@ -195,6 +216,20 @@ export default function SearchResults() {
                       <option value="">Select departure</option>
                       {CITIES.map(city => (
                         <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
+                  ) : type === 'hotels' ? (
+                    <select className="field-input" value={searchFrom} onChange={e => setSearchFrom(e.target.value)}>
+                      <option value="">Select city</option>
+                      {CITIES.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
+                  ) : type === 'cabs' ? (
+                    <select className="field-input" value={searchFrom} onChange={e => setSearchFrom(e.target.value)}>
+                      <option value="">Select pickup location</option>
+                      {CAB_PICKUPS.map(location => (
+                        <option key={location} value={location}>{location}</option>
                       ))}
                     </select>
                   ) : (
@@ -235,7 +270,12 @@ export default function SearchResults() {
                 {type === 'cabs' && (
                   <div className="field-group" style={{ flex: '1 1 150px' }}>
                     <label className="field-label">Dropoff</label>
-                    <input className="field-input" placeholder="Enter destination" value={searchTo} onChange={e => setSearchTo(e.target.value)} />
+                    <select className="field-input" value={searchTo} onChange={e => setSearchTo(e.target.value)}>
+                      <option value="">Select dropoff</option>
+                      {CITIES.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
                 {type === 'flights' && (
@@ -291,14 +331,14 @@ export default function SearchResults() {
             </div>
 
             <div className="filters-bar">
-              {airlineFilters.map(filter => (
+              {flightFilters.map(filter => (
                 <button
                   key={filter}
                   type="button"
                   className={`filter-tag ${priceFilter === filter ? 'active' : ''}`}
                   onClick={() => setPriceFilter(filter)}
                 >
-                  {filter === 'all' ? 'All Airlines' : filter}
+                  {filter === 'all' ? 'All Flights' : filter}
                 </button>
               ))}
               <div className="sort-options">
@@ -359,6 +399,7 @@ export default function SearchResults() {
                     checkInTime: hotelCheckInTime,
                     checkOutDate: hotelCheckOutDate,
                     checkOutTime: hotelCheckOutTime,
+                    nights: hotelStayNights,
                   }}
                   onBook={handleStartBooking}
                   onSelect={s => setToast({ message: `Selected ${s.name} — ${s.city}`, type: 'info' })}
@@ -375,7 +416,7 @@ export default function SearchResults() {
         <ConfirmModal
           open={confirmOpen}
           title="Confirm booking"
-          body={selectedService ? (type === 'flights' ? `${selectedService.airline} ${selectedService.from} → ${selectedService.to} · ₹${selectedService.price}` : type === 'hotels' ? `${selectedService.name} · ${selectedService.city} · ₹${selectedService.price}${hotelStayLabel ? ` · ${hotelStayLabel}` : ''}` : `${selectedService.type} · ${selectedService.from} → ${selectedService.to} · ₹${selectedService.price}`) : ''}
+          body={selectedService ? (type === 'flights' ? `${selectedService.airline} ${selectedService.from} → ${selectedService.to} · ₹${selectedService.price}` : type === 'hotels' ? `${selectedService.name} · ${selectedService.city} · ₹${selectedService.price * hotelStayNights}${hotelStayLabel ? ` · ${hotelStayLabel}` : ''}` : `${selectedService.type} · ${selectedService.from} → ${selectedService.to} · ₹${selectedService.price}`) : ''}
           onCancel={() => setConfirmOpen(false)}
           onConfirm={confirmBooking}
           confirmLabel="Confirm & Pay"

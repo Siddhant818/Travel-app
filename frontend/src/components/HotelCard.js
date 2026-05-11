@@ -6,6 +6,8 @@ export default function HotelCard({ hotel, stayDetails, onBook, onSelect }) {
   const staySummary = stayDetails?.checkInDate && stayDetails?.checkInTime && stayDetails?.checkOutDate && stayDetails?.checkOutTime
     ? `${stayDetails.checkInDate} ${stayDetails.checkInTime} → ${stayDetails.checkOutDate} ${stayDetails.checkOutTime}`
     : '';
+  const nights = stayDetails?.nights || 1;
+  const totalPrice = hotel.price * nights;
 
   return (
     <div className="hotel-card">
@@ -22,6 +24,11 @@ export default function HotelCard({ hotel, stayDetails, onBook, onSelect }) {
           <div>
             <span style={{ fontSize: 22, fontWeight: 800 }}>{formatPrice(hotel.price)}</span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}> / night</span>
+            {stayDetails?.nights ? (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                {nights} night{nights > 1 ? 's' : ''} total: <strong style={{ color: 'var(--text)' }}>{formatPrice(totalPrice)}</strong>
+              </div>
+            ) : null}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="nav-btn nav-btn-outline" onClick={() => onSelect && onSelect(hotel)}>Details</button>

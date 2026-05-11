@@ -25,7 +25,7 @@ export default function FlightCard({ flight, onBook, onSelect }) {
             <span>✈</span>
             <div className="duration-bar"></div>
           </div>
-          <div className="stops">Non-stop</div>
+          <div className="stops">{flight.tripType || 'Non-stop'}</div>
         </div>
         <div className="time-point">
           <div className="time">–</div>

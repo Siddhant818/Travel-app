@@ -15,6 +15,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('flights');
   const [flightSearchError, setFlightSearchError] = useState('');
   const [hotelSearchError, setHotelSearchError] = useState('');
+  const [cabSearchError, setCabSearchError] = useState('');
   const today = new Date().toISOString().split('T')[0];
 
   // Flight form
@@ -62,6 +63,11 @@ export default function Home() {
 
   const handleCabSearch = (e) => {
     e.preventDefault();
+    if (!cabFrom.trim()) {
+      setCabSearchError('Please select a pickup location before searching cabs.');
+      return;
+    }
+    setCabSearchError('');
     navigate(`/search/cabs?from=${cabFrom}`);
   };
 
@@ -135,16 +141,14 @@ export default function Home() {
                 <div className="search-row cols-3">
                   <div className="field-group">
                     <label className="field-label">City</label>
-                    <input
+                    <select
                       className="field-input"
-                      placeholder="e.g. Mumbai, Delhi, Kolkata..."
                       value={hotelCity}
                       onChange={e => setHotelCity(e.target.value)}
-                      list="hotel-cities"
-                    />
-                    <datalist id="hotel-cities">
-                      {CITIES.map(c => <option key={c} value={c} />)}
-                    </datalist>
+                    >
+                      <option value="">Select city</option>
+                      {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                   <div className="field-group">
                     <label className="field-label">Check-in Date</label>
@@ -195,15 +199,22 @@ export default function Home() {
                 <div className="search-row cols-1">
                   <div className="field-group">
                     <label className="field-label">Pickup Location</label>
-                    <input
+                    <select
                       className="field-input"
-                      placeholder="e.g. Delhi Airport, Mumbai Airport..."
                       value={cabFrom}
                       onChange={e => setCabFrom(e.target.value)}
-                    />
+                    >
+                      <option value="">Select pickup location</option>
+                      <option value="Delhi Airport">Delhi Airport</option>
+                      <option value="Mumbai Airport">Mumbai Airport</option>
+                      <option value="Bangalore Airport">Bangalore Airport</option>
+                      <option value="Chennai Airport">Chennai Airport</option>
+                      <option value="Hyderabad Airport">Hyderabad Airport</option>
+                    </select>
                   </div>
                 </div>
                 <button type="submit" className="search-btn">Find Cabs</button>
+                {cabSearchError && <div className="error-msg" style={{ marginTop: 12, marginBottom: 0 }}>{cabSearchError}</div>}
               </form>
             )}
           </div>

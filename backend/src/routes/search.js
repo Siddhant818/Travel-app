@@ -17,9 +17,15 @@ router.get('/flights', (req, res) => {
   if (from) results = results.filter(f => f.from.toLowerCase().includes(from.toLowerCase()));
   if (to) results = results.filter(f => f.to.toLowerCase().includes(to.toLowerCase()));
   if (date) {
-    results = results.map(f => ({
+    results = results.map((f, index) => ({
       ...f,
-      date
+      date,
+      tripType: index % 2 === 0 ? 'Non-stop' : 'Direct'
+    }));
+  } else {
+    results = results.map((f, index) => ({
+      ...f,
+      tripType: index % 2 === 0 ? 'Non-stop' : 'Direct'
     }));
   }
   res.json(results);
